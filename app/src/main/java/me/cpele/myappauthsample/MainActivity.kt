@@ -1,5 +1,6 @@
 package me.cpele.myappauthsample
 
+import android.app.AlertDialog
 import android.app.PendingIntent
 import android.content.Intent
 import android.net.Uri
@@ -10,6 +11,10 @@ import kotlinx.android.synthetic.main.activity_main.*
 import net.openid.appauth.*
 
 class MainActivity : AppCompatActivity() {
+
+    private companion object {
+        private const val CLIENT_ID = "511828570984-fuprh0cm7665emlne3rnf9pk34kkn86s.apps.googleusercontent.com"
+    }
 
     private lateinit var authorizationService: AuthorizationService
 
@@ -26,19 +31,31 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         val response = AuthorizationResponse.fromIntent(intent)
         val error = AuthorizationException.fromIntent(intent)
+
         response?.apply {
             Log.d(localClassName, jsonSerializeString())
+            val authState = AuthState(response, error)
+            val request = createTokenExchangeRequest()
+            authorizationService.performTokenRequest(request) { response, tokenException ->
+                authState.apply {
+                    update(response, tokenException)
+                }.apply {
+                    performActionWithFreshTokens(authorizationService) { accessToken, idToken, _ ->
+                        AlertDialog.Builder(this@MainActivity)
+                                .setMessage("Here is your access token: $accessToken.\n" +
+                                        "And your id token: $idToken.\n" +
+                                        "Thanks.")
+                                .setPositiveButton(android.R.string.ok) { dialog, _ -> dialog.dismiss() }
+                                .show()
+                    }
+                }
+            }
         }
-        val authState = AuthState(response, error)
-        authState.performActionWithFreshTokens(authorizationService, { accessToken, idToken, ex ->
-            TODO()
-        })
     }
 
     private fun auth() {
 
         val redirectUri = Uri.parse("com.googleusercontent.apps.511828570984-fuprh0cm7665emlne3rnf9pk34kkn86s:/oauth2redirect")
-        val clientId = "511828570984-fuprh0cm7665emlne3rnf9pk34kkn86s.apps.googleusercontent.com"
 
         val configuration = AuthorizationServiceConfiguration(
                 Uri.parse("https://accounts.google.com/o/oauth2/v2/auth"),
@@ -47,7 +64,7 @@ class MainActivity : AppCompatActivity() {
 
         val request = AuthorizationRequest.Builder(
                 configuration,
-                clientId,
+                CLIENT_ID,
                 ResponseTypeValues.CODE,
                 redirectUri
         ).setScope("profile").build()
