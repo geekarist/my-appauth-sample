@@ -9,6 +9,8 @@ import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import kotlinx.android.synthetic.main.activity_main.*
 import net.openid.appauth.*
+import java.io.InputStreamReader
+import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
@@ -41,12 +43,21 @@ class MainActivity : AppCompatActivity() {
                     update(response, tokenException)
                 }.apply {
                     performActionWithFreshTokens(authorizationService) { accessToken, idToken, _ ->
-                        AlertDialog.Builder(this@MainActivity)
-                                .setMessage("Here is your access token: $accessToken.\n" +
-                                        "And your id token: $idToken.\n" +
-                                        "Thanks.")
-                                .setPositiveButton(android.R.string.ok) { dialog, _ -> dialog.dismiss() }
-                                .show()
+
+                        Thread {
+                            val url = "https://www.googleapis.com/oauth2/v3/userinfo"
+                            val connection = URL(url).openConnection()
+                            connection.setRequestProperty("Authorization", "Bearer $accessToken")
+                            val inputStream = connection.getInputStream()
+                            val inputStreamReader = InputStreamReader(inputStream)
+                            val strResponse = inputStreamReader.readText()
+                            inputStreamReader.close()
+
+                            AlertDialog.Builder(this@MainActivity)
+                                    .setMessage("Here is your response: $strResponse")
+                                    .setPositiveButton(android.R.string.ok) { dialog, _ -> dialog.dismiss() }
+                                    .show()
+                        }.start()
                     }
                 }
             }
